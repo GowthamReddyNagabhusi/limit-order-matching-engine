@@ -1,6 +1,7 @@
 #pragma once
 #include <queue>
 #include "Order.h"
+#include "Trade.h"
 #include <vector>
 
 // Comparator for buy orders prioritized by highest price, then earliest timestamp
@@ -29,6 +30,7 @@ class OrderBook{
         std::priority_queue<Order, std::vector<Order>, CompareBuy> buyOrders;
         std::priority_queue<Order, std::vector<Order>, CompareSell> sellOrders;
     public:
+        std::vector<Trade> matchOrders(); // Function to match buy and sell orders (not implemented in this snippet)
         void addOrder(const Order& order);
         void printOrderBook();
 };
