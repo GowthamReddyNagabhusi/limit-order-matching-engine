@@ -1,43 +1,59 @@
 // Standard library includes
 #include <iostream>
 #include <vector>
+#include <random>
 // Project includes
 #include "Order.h"
 #include "MatchingEngine.h"
+Order generateRandomOrder(int id, long long timestamp) {
+    // Static random number generator to ensure it is initialized only once
+    static std::mt19937 rng(std::random_device{}());
 
+    std::uniform_int_distribution<int> sideDist(0, 1); // 0 for buy, 1 for sell
+    std::uniform_real_distribution<double> priceDist(95.0, 105.0); // Random price between 95.0 and 105.0
+    std::uniform_int_distribution<int> qtyDist(1, 20); // Random quantity between 1 and 20
+    std::uniform_int_distribution<int> typeDist(0, 1); // 0 for LIMIT, 1 for MARKET
+
+    bool isBuy = sideDist(rng); // Randomly determine if the order is a buy or sell
+    double price = priceDist(rng); // Randomly generate a price for the order
+    int quantity = qtyDist(rng); // Randomly generate a quantity for the order
+    // Randomly determine the order type (LIMIT or MARKET)
+    OrderType type = (typeDist(rng) == 0) ? OrderType::LIMIT : OrderType::MARKET;
+
+    if (type == OrderType::MARKET)
+        price = 0; // price irrelevant
+
+    return Order(id, isBuy, price, quantity, timestamp, type);
+}
 // Main entry point for the limit order matching engine
 int main() {
-    // Create an instance of the matching engine
+
     MatchingEngine engine;
 
-    // Define a vector of sample orders for testing
-    // Order format: (id, isBuy, price, quantity, timestamp)
-    std::vector<Order> orders = {
-        Order(1, true, 100.0, 10, 1),      // Buy order at 100.0
-        Order(2, false, 99.0, 5, 2),       // Sell order at 99.0
-        Order(3, true, 101.0, 15, 3),      // Buy order at 101.0
-        Order(4, false, 98.0, 20, 4),      // Sell order at 98.0
-        Order(5, true, 99.0, 10, 5),       // Buy order at 99.0
-        Order(6, false, 100.0, 5, 6)       // Sell order at 100.0
-    };
+    const int NUM_ORDERS = 50;
 
-    // Print header for trades output
-    std::cout << "Trades executed:\n";
+    for (int i = 1; i <= NUM_ORDERS; i++) {
+        Order order = generateRandomOrder(i, i);
+        // Print the details of the incoming order
+        std::cout << "\nIncoming Order "
+                  << order.getId()
+                  << (order.isBuyOrder() ? " BUY " : " SELL ")
+                  << "Qty:" << order.getQuantity()
+                  << " Price:" << order.getPrice()
+                  << std::endl;
 
-    // Process each order through the matching engine
-    for (const auto& order : orders) {
-        // Process the order and get resulting trades
         auto trades = engine.processOrder(order);
-
-        // Display each executed trade
+        // Print details of each executed trade
         for (const auto& trade : trades) {
-            std::cout << "Buy Order ID: " << trade.buyOrderId
-                      << ", Sell Order ID: " << trade.sellOrderId
-                      << ", Price: " << trade.price
-                      << ", Quantity: " << trade.quantity
+            std::cout << "TRADE → "
+                      << trade.quantity
+                      << " @ "
+                      << trade.price
                       << std::endl;
         }
+        // Print the current state of the order book after processing the order
+        engine.printOrderBook();
     }
 
-    return 0;  // Exit the program successfully
+    return 0;
 }

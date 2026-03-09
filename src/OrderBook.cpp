@@ -4,65 +4,81 @@
 
 // Add a new order to the appropriate queue (buy or sell)
 void OrderBook::addOrder(const Order& order) {
-    if (order.isBuy) {
+    if (order.isBuyOrder()) {
         buyOrders.push(order);  // Add to buy orders priority queue
     } else {
         sellOrders.push(order); // Add to sell orders priority queue
     }
-    // After adding a new order, attempt to match orders (not implemented in this snippet)
+    // After adding a new order, attempt to match orders
     matchOrders();
 }
 
-// Display all orders in the order book
-void OrderBook::printOrderBook() {
-    // Print all buy orders in priority order
-    std::cout << "Buy Orders:" << std::endl;
-    std::priority_queue<Order, std::vector<Order>, CompareBuy> tempBuy = buyOrders;
-    while (!tempBuy.empty()) {
-        Order order = tempBuy.top();
-        tempBuy.pop();
-        std::cout << "ID: " << order.id << ", Price: " << order.price 
-                  << ", Quantity: " << order.quantity 
-                  << ", Timestamp: " << order.timestamp << std::endl;
-    }
 
-    // Print all sell orders in priority order
-    std::cout << "Sell Orders:" << std::endl;
-    std::priority_queue<Order, std::vector<Order>, CompareSell> tempSell = sellOrders;
-    while (!tempSell.empty()) {
-        Order order = tempSell.top();
-        tempSell.pop();
-        std::cout << "ID: " << order.id << ", Price: " << order.price 
-                  << ", Quantity: " << order.quantity 
-                  << ", Timestamp: " << order.timestamp << std::endl;
-    }
-    
-}
 std::vector<Trade> OrderBook::matchOrders() {
     std::vector<Trade> trades;
-    // This function will contain the logic to match buy and sell orders based on price and timestamp
-        while(!buyOrders.empty() && !sellOrders.empty()) {
-            Order bestBuy = buyOrders.top();
-            Order bestSell = sellOrders.top();
-            // Check if the best buy order can be matched with the best sell order
-            if (bestBuy.price < bestSell.price) {
-                break; // No match possible, exit the loop
-            }
-            int tradeQuantity = std::min(bestBuy.quantity, bestSell.quantity);
-            // Update the quantities of the matched orders
-            trades.emplace_back(bestBuy.id, bestSell.id, bestSell.price, tradeQuantity);
-            bestBuy.quantity -= tradeQuantity;
-            bestSell.quantity -= tradeQuantity;
-            // Remove the orders from the queues
+
+    while (!buyOrders.empty() && !sellOrders.empty()) {
+
+        Order bestBuy = buyOrders.top();
+        Order bestSell = sellOrders.top();
+        // Check if the best buy and sell orders can be matched based on price and order type
+        if (bestBuy.getType() == OrderType::MARKET ||
+            bestSell.getType() == OrderType::MARKET ||
+            bestBuy.getPrice() >= bestSell.getPrice()) {
+            // Calculate the quantity to trade (the lesser of the two order quantities)
+            int tradeQuantity = std::min(bestBuy.getQuantity(), bestSell.getQuantity());
+            double tradePrice = bestSell.getPrice();
+            // Record the trade details in the trades vector
+            trades.emplace_back(bestBuy.getId(), bestSell.getId(), tradePrice, tradeQuantity);
+
             buyOrders.pop();
             sellOrders.pop();
-            // If there are remaining quantities in either order, re-add it to the queue
-            if (bestBuy.quantity > 0) {
-                buyOrders.push(bestBuy);
+            // Update the quantities of the buy and sell orders after the trade
+            if (tradeQuantity < bestBuy.getQuantity()) {
+                bestBuy.setQuantity(bestBuy.getQuantity() - tradeQuantity);
+                if (bestBuy.getType() == OrderType::LIMIT)
+                    buyOrders.push(bestBuy);
             }
-            if (bestSell.quantity > 0) {
-                sellOrders.push(bestSell);
+
+            if (tradeQuantity < bestSell.getQuantity()) {
+                bestSell.setQuantity(bestSell.getQuantity() - tradeQuantity);
+                if (bestSell.getType() == OrderType::LIMIT)
+                    sellOrders.push(bestSell);
             }
+
+        } else {
+            break;
         }
-        return trades; // Return the list of executed trades
     }
+
+    return trades;
+}
+void OrderBook::printOrderBook() const {
+
+    auto buyCopy = buyOrders;
+    auto sellCopy = sellOrders;
+
+    std::cout << "\n----- ORDER BOOK -----\n";
+
+    std::cout << "\nBUY ORDERS:\n";
+    while (!buyCopy.empty()) {
+        const Order& order = buyCopy.top();
+        std::cout << "Price: " << order.getPrice()
+                  << " Qty: " << order.getQuantity()
+                  << " ID: " << order.getId()
+                  << std::endl;
+        buyCopy.pop();
+    }
+
+    std::cout << "\nSELL ORDERS:\n";
+    while (!sellCopy.empty()) {
+        const Order& order = sellCopy.top();
+        std::cout << "Price: " << order.getPrice()
+                  << " Qty: " << order.getQuantity()
+                  << " ID: " << order.getId()
+                  << std::endl;
+        sellCopy.pop();
+    }
+
+    std::cout << "----------------------\n";
+}
